@@ -1,32 +1,18 @@
 // API Configuration for GoRefurbish Admin Panel
-// This file contains all the API endpoint configurations and settings
 
-// Environment Configuration
 export const API_CONFIG = {
-  // Base URL for the API - change this to your actual API URL
-  BASE_URL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
-  
-  // API Version
-  VERSION: 'v1',
-  
-  // Environment
-  ENVIRONMENT: import.meta.env.MODE || 'development',
-  
-  // Enable mock mode for development
-  USE_MOCK_API: import.meta.env.VITE_USE_MOCK_API === 'true' || true,
-  
-  // Request timeout in milliseconds
+  BASE_URL: import.meta.env.VITE_API_URL || "http://localhost:3000/api",
+  VERSION: "v1",
+  ENVIRONMENT: import.meta.env.MODE || "development",
+  USE_MOCK_API: import.meta.env.VITE_USE_MOCK_API === "true" || true,
   TIMEOUT: 30000,
-  
-  // Retry configuration
   RETRY: {
     attempts: 3,
     delay: 1000,
-  }
+  },
 };
 
 export const ENDPOINTS = {
-  // Authentication
   AUTH: {
     LOGIN: "/auth/login",
     LOGOUT: "/auth/logout",
@@ -34,7 +20,6 @@ export const ENDPOINTS = {
     PROFILE: "/auth/profile",
   },
 
-  // Products
   PRODUCTS: {
     LIST: "/admin/products",
     DETAILS: "/admin/products/:id",
@@ -45,7 +30,6 @@ export const ENDPOINTS = {
     NEGOTIATIONS: "/admin/products/:id/negotiations",
   },
 
-  // Users
   USERS: {
     LIST: "/admin/users",
     DETAILS: "/admin/users/:id",
@@ -55,7 +39,6 @@ export const ENDPOINTS = {
     UNBLOCK: "/admin/users/:id/unblock",
   },
 
-  // Analytics
   ANALYTICS: {
     DASHBOARD: "/admin/analytics/dashboard",
     REVENUE: "/admin/analytics/revenue",
@@ -63,7 +46,6 @@ export const ENDPOINTS = {
     PRODUCTS: "/admin/analytics/products",
   },
 
-  // Settings
   SETTINGS: {
     GET: "/admin/settings",
     UPDATE: "/admin/settings",
@@ -71,7 +53,6 @@ export const ENDPOINTS = {
     TEST_PAYMENT: "/admin/settings/test-payment",
   },
 
-  // Payments
   PAYMENTS: {
     LIST: "/admin/payments",
     DETAILS: "/admin/payments/:id",
@@ -81,7 +62,6 @@ export const ENDPOINTS = {
     BULK_PROCESS: "/admin/payments/bulk-process",
   },
 
-  // Staff Management
   STAFF: {
     LIST: "/admin/staff",
     CREATE: "/admin/staff",
@@ -90,14 +70,12 @@ export const ENDPOINTS = {
     PERMISSIONS: "/admin/staff/:id/permissions",
   },
 
-  // File Upload
   UPLOAD: {
     IMAGE: "/upload/image",
     DOCUMENT: "/upload/document",
   },
 };
 
-// HTTP Status Codes
 export const HTTP_STATUS = {
   OK: 200,
   CREATED: 201,
@@ -112,20 +90,18 @@ export const HTTP_STATUS = {
   SERVICE_UNAVAILABLE: 503,
 };
 
-// Request Headers
 export const DEFAULT_HEADERS = {
   "Content-Type": "application/json",
   Accept: "application/json",
 };
 
-// Authentication Token Storage
 export const TOKEN_STORAGE = {
   ACCESS_TOKEN: "adminAccessToken",
   REFRESH_TOKEN: "adminRefreshToken",
   USER_DATA: "adminUserData",
 };
 
-// Mock API Delays (for development)
+// Mock API delays for development
 export const MOCK_DELAYS = {
   FAST: 300,
   NORMAL: 800,
@@ -133,7 +109,6 @@ export const MOCK_DELAYS = {
   VERY_SLOW: 3000,
 };
 
-// API Response Status
 export const API_STATUS = {
   SUCCESS: "success",
   ERROR: "error",
@@ -141,7 +116,6 @@ export const API_STATUS = {
   IDLE: "idle",
 };
 
-// Product Status Options
 export const PRODUCT_STATUS = {
   PENDING: "pending",
   APPROVED: "approved",
@@ -150,7 +124,6 @@ export const PRODUCT_STATUS = {
   ARCHIVED: "archived",
 };
 
-// User Roles
 export const USER_ROLES = {
   SUPER_ADMIN: "super_admin",
   ADMIN: "admin",
@@ -158,7 +131,6 @@ export const USER_ROLES = {
   MODERATOR: "moderator",
 };
 
-// Payment Status
 export const PAYMENT_STATUS = {
   PENDING: "pending",
   PROCESSING: "processing",
@@ -168,7 +140,6 @@ export const PAYMENT_STATUS = {
   REFUNDED: "refunded",
 };
 
-// Notification Types
 export const NOTIFICATION_TYPES = {
   SUCCESS: "success",
   ERROR: "error",
@@ -176,14 +147,13 @@ export const NOTIFICATION_TYPES = {
   INFO: "info",
 };
 
-// Pagination Defaults
 export const PAGINATION = {
   DEFAULT_PAGE: 1,
   DEFAULT_LIMIT: 10,
   MAX_LIMIT: 100,
 };
 
-// File Upload Limits
+// File upload size limits
 export const UPLOAD_LIMITS = {
   IMAGE: {
     MAX_SIZE: 5 * 1024 * 1024, // 5MB
@@ -199,7 +169,6 @@ export const UPLOAD_LIMITS = {
   },
 };
 
-// Error Messages
 export const ERROR_MESSAGES = {
   NETWORK_ERROR: "Network error. Please check your connection and try again.",
   SERVER_ERROR: "Server error. Please try again later.",
@@ -211,7 +180,6 @@ export const ERROR_MESSAGES = {
   UNKNOWN_ERROR: "An unexpected error occurred. Please try again.",
 };
 
-// Success Messages
 export const SUCCESS_MESSAGES = {
   PRODUCT_APPROVED: "Product approved successfully",
   PRODUCT_REJECTED: "Product rejected successfully",
@@ -223,14 +191,12 @@ export const SUCCESS_MESSAGES = {
   NEGOTIATION_SENT: "Price negotiation sent successfully",
 };
 
-// Currency Configuration
 export const CURRENCY = {
   SYMBOL: "₹",
   CODE: "INR",
   LOCALE: "en-IN",
 };
 
-// Date/Time Configuration
 export const DATE_TIME = {
   LOCALE: "en-IN",
   TIMEZONE: "Asia/Kolkata",
@@ -242,7 +208,7 @@ export const DATE_TIME = {
   },
 };
 
-// Feature Flags
+// Feature toggles for admin functionality
 export const FEATURES = {
   ENABLE_NEGOTIATIONS: true,
   ENABLE_BULK_ACTIONS: true,
@@ -254,7 +220,6 @@ export const FEATURES = {
   ENABLE_DARK_MODE: false,
 };
 
-// Performance Configuration
 export const PERFORMANCE = {
   DEBOUNCE_DELAY: 300,
   CACHE_DURATION: 5 * 60 * 1000, // 5 minutes
@@ -262,7 +227,6 @@ export const PERFORMANCE = {
   ENABLE_REQUEST_DEDUPLICATION: true,
 };
 
-// Security Configuration
 export const SECURITY = {
   ENABLE_CSRF_PROTECTION: true,
   SESSION_TIMEOUT: 60 * 60 * 1000, // 1 hour

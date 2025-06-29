@@ -1,8 +1,14 @@
-import React from "react";
-import { useApp, NOTIFICATION_TYPES } from "../context";
+import { useNotificationStore } from "../stores";
+
+const NOTIFICATION_TYPES = {
+  SUCCESS: "success",
+  ERROR: "error",
+  WARNING: "warning",
+  INFO: "info",
+};
 
 const NotificationSystem = () => {
-  const { notifications, removeNotification } = useApp();
+  const { notifications, removeNotification } = useNotificationStore();
 
   const getNotificationIcon = (type) => {
     switch (type) {

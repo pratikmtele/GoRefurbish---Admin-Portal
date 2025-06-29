@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
   Edit,
@@ -13,10 +13,10 @@ import {
   UserPlus,
   Settings,
 } from "lucide-react";
-import { useApp } from "../context";
+import { useNotificationStore } from "../stores";
 
 const StaffManagement = () => {
-  const { showSuccess, showError } = useApp();
+  const { showSuccess, showError } = useNotificationStore();
   const [staff, setStaff] = useState([]);
   const [filteredStaff, setFilteredStaff] = useState([]);
   const [isLoading, setIsLoading] = useState(true);

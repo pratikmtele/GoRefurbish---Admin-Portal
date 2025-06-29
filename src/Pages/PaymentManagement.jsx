@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
   Filter,
@@ -15,10 +15,8 @@ import {
   Check,
   AlertTriangle,
 } from "lucide-react";
-import { useApp } from "../context";
 
 const PaymentManagement = () => {
-  const { showSuccess, showError, showWarning, showInfo } = useApp();
   const [payments, setPayments] = useState([]);
   const [filteredPayments, setFilteredPayments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);

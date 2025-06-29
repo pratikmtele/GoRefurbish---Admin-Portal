@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Package,
@@ -11,11 +11,8 @@ import {
   CreditCard,
   TrendingUp,
 } from "lucide-react";
-import { useApp } from "../context";
 
 const Dashboard = () => {
-  const { showSuccess, showError, showWarning, showInfo } = useApp();
-
   const [stats, setStats] = useState({
     totalProducts: 0,
     totalUsers: 0,

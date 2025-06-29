@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { Package, Eye, EyeOff, AlertCircle } from "lucide-react";
-import { useAuth, useApp } from "../context";
+import { useAuthStore, useNotificationStore } from "../stores";
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -11,10 +11,10 @@ const Login = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
 
-  const { isAuthenticated, login, loading } = useAuth();
-  const { showError, showSuccess } = useApp();
+  const { isAuthenticated, login, isLoading, error, clearError } =
+    useAuthStore();
+  const { showError, showSuccess } = useNotificationStore();
 
   // Redirect if already authenticated
   if (isAuthenticated) {
@@ -63,7 +63,8 @@ const Login = () => {
       return;
     }
 
-    setIsLoading(true);
+    // Clear any previous errors
+    clearError();
 
     try {
       const result = await login(formData);
@@ -77,8 +78,6 @@ const Login = () => {
     } catch (error) {
       setErrors({ submit: "An unexpected error occurred" });
       showError("An unexpected error occurred");
-    } finally {
-      setIsLoading(false);
     }
   };
 

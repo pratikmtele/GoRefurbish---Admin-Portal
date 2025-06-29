@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Save,
   Bell,
@@ -11,10 +11,11 @@ import {
   Users,
   CreditCard,
 } from "lucide-react";
-import { useApp } from "../context";
+import { useNotificationStore } from "../stores";
 
 const Settings = () => {
-  const { showSuccess, showError, showWarning, showInfo } = useApp();
+  const { showSuccess, showError, showWarning, showInfo } =
+    useNotificationStore();
   const [settings, setSettings] = useState({
     // General Settings
     siteName: "GoRefurbish",

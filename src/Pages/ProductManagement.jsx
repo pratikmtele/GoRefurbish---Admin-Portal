@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
   Filter,
@@ -23,110 +23,37 @@ import {
   MessageCircle,
   Send,
 } from "lucide-react";
-import { useApp } from "../context";
-import productService from "../services/productService";
-
-// Mock data - remove when implementing real API
-const mockProducts = [
-  {
-    id: 1,
-    title: "iPhone 13 Pro Max - 256GB Space Gray",
-    seller: "John Doe",
-    sellerEmail: "john.doe@email.com",
-    price: 85000,
-    originalPrice: 90000,
-    category: "Electronics",
-    condition: "Excellent",
-    status: "pending",
-    submittedAt: "2024-12-25T10:30:00Z",
-    images: [
-      "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=400",
-    ],
-    description: "Excellent condition iPhone 13 Pro Max with 256GB storage...",
-    negotiations: [
-      {
-        id: 1,
-        type: "admin_offer",
-        proposedPrice: 85000,
-        reason: "market_adjustment",
-        message:
-          "Based on current market trends, we suggest this price adjustment",
-        adminName: "Alice Johnson",
-        createdAt: "2024-12-26T09:00:00Z",
-        status: "pending",
-      },
-    ],
-  },
-  {
-    id: 2,
-    title: "MacBook Air M2 - 512GB Silver",
-    seller: "Jane Smith",
-    sellerEmail: "jane.smith@email.com",
-    price: 115000,
-    originalPrice: 115000,
-    category: "Electronics",
-    condition: "Like New",
-    status: "approved",
-    submittedAt: "2024-12-24T15:45:00Z",
-    images: ["https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=400"],
-    description: "Like new MacBook Air with M2 chip...",
-    negotiations: [],
-  },
-  {
-    id: 3,
-    title: "Sony WH-1000XM4 Headphones",
-    seller: "Mike Johnson",
-    sellerEmail: "mike.johnson@email.com",
-    price: 18000,
-    originalPrice: 20000,
-    category: "Electronics",
-    condition: "Good",
-    status: "rejected",
-    submittedAt: "2024-12-23T09:15:00Z",
-    images: [
-      "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400",
-    ],
-    description: "Premium wireless headphones...",
-    negotiations: [
-      {
-        id: 2,
-        type: "admin_offer",
-        proposedPrice: 18000,
-        reason: "condition_adjustment",
-        message: "Price adjusted based on product condition assessment",
-        adminName: "Bob Smith",
-        createdAt: "2024-12-23T10:00:00Z",
-        status: "accepted",
-      },
-    ],
-  },
-  {
-    id: 4,
-    title: "Vintage Leather Sofa",
-    seller: "Sarah Wilson",
-    sellerEmail: "sarah.wilson@email.com",
-    price: 45000,
-    originalPrice: 45000,
-    category: "Furniture",
-    condition: "Used",
-    status: "pending",
-    submittedAt: "2024-12-22T14:20:00Z",
-    images: ["https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400"],
-    description: "Beautiful vintage leather sofa...",
-    negotiations: [],
-  },
-];
+import { useProductStore, useNotificationStore, useAuthStore } from "../stores";
 
 const ProductManagement = () => {
-  const { showSuccess, showError, showWarning, showInfo } = useApp();
-  const [products, setProducts] = useState([]);
-  const [filteredProducts, setFilteredProducts] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [actionLoading, setActionLoading] = useState({});
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedProducts, setSelectedProducts] = useState([]);
+  // Zustand stores
+  const {
+    products,
+    filters,
+    pagination,
+    isLoading,
+    isRefreshing,
+    actionLoading,
+    selectedProducts,
+    setFilters,
+    setPagination,
+    setSelectedProducts,
+    toggleProductSelection,
+    selectAllProducts,
+    clearSelection,
+    fetchProducts,
+    refreshProducts,
+    updateProductStatus,
+    bulkUpdateStatus,
+    deleteProduct,
+    submitNegotiation,
+  } = useProductStore();
+
+  const { showSuccess, showError, showWarning, showInfo } =
+    useNotificationStore();
+  const { user } = useAuthStore();
+
+  // Local component state
   const [showNegotiationModal, setShowNegotiationModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [negotiationForm, setNegotiationForm] = useState({
@@ -134,341 +61,169 @@ const ProductManagement = () => {
     reason: "",
     message: "",
   });
-  const [pagination, setPagination] = useState({
-    total: 0,
-    page: 1,
-    limit: 10,
-    totalPages: 0,
-  });
 
-  // Load products from API
-  const loadProducts = async (refresh = false) => {
-    try {
-      if (refresh) {
-        setIsRefreshing(true);
-      } else {
-        setIsLoading(true);
-      }
-
-      const filters = {
-        search: searchTerm,
-        status: statusFilter,
-        page: pagination.page,
-        limit: pagination.limit,
-      };
-
-      const response = await productService.getProducts(filters);
-
-      if (response.success) {
-        setProducts(response.data);
-        setFilteredProducts(response.data);
-        setPagination(response.pagination);
-      } else {
-        throw new Error(response.message || "Failed to fetch products");
-      }
-    } catch (error) {
+  // Load products on component mount and when filters change
+  useEffect(() => {
+    fetchProducts(true).catch((error) => {
+      showError("Failed to load products");
       console.error("Error loading products:", error);
-      showError(error.message || "Failed to load products. Please try again.");
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  };
+    });
+  }, [filters.search, filters.status]);
 
-  // Handle product status change
-  const handleStatusChange = async (productId, newStatus) => {
-    try {
-      setActionLoading((prev) => ({ ...prev, [productId]: "status" }));
-
-      const product = products.find((p) => p.id === productId);
-      const response = await productService.updateProductStatus(
-        productId,
-        newStatus
-      );
-
-      if (response.success) {
-        // Update local state
-        setProducts((prev) =>
-          prev.map((product) =>
-            product.id === productId
-              ? { ...product, status: newStatus }
-              : product
-          )
-        );
-
-        // Show appropriate notification based on status change
-        switch (newStatus) {
-          case "approved":
-            showSuccess(
-              `Product "${product?.title}" has been approved successfully`
-            );
-            break;
-          case "rejected":
-            showWarning(`Product "${product?.title}" has been rejected`);
-            break;
-          case "pending":
-            showInfo(`Product "${product?.title}" status changed to pending`);
-            break;
-          default:
-            showInfo(`Product "${product?.title}" status updated`);
-        }
-      } else {
-        throw new Error(response.message || "Failed to update product status");
-      }
-    } catch (error) {
-      console.error("Error updating product status:", error);
-      showError(
-        error.message || "Failed to update product status. Please try again."
-      );
-    } finally {
-      setActionLoading((prev) => {
-        const updated = { ...prev };
-        delete updated[productId];
-        return updated;
+  // Handle page changes
+  useEffect(() => {
+    if (pagination.page > 1) {
+      fetchProducts().catch((error) => {
+        showError("Failed to load products");
+        console.error("Error loading products:", error);
       });
     }
+  }, [pagination.page]);
+
+  // Handle search
+  const handleSearch = (value) => {
+    setFilters({ search: value });
+    setPagination({ page: 1 });
   };
 
-  // Handle bulk actions
-  const handleBulkAction = async (action) => {
+  // Handle status filter
+  const handleStatusFilter = (status) => {
+    setFilters({ status });
+    setPagination({ page: 1 });
+  };
+
+  // Handle product status update
+  const handleStatusUpdate = async (productId, status) => {
+    try {
+      const response = await updateProductStatus(productId, status);
+      if (response.success) {
+        showSuccess(`Product ${status} successfully`);
+      }
+    } catch (error) {
+      showError(`Failed to update product status: ${error.message}`);
+    }
+  };
+
+  // Handle bulk status update
+  const handleBulkStatusUpdate = async (status) => {
     if (selectedProducts.length === 0) {
-      showWarning("Please select products to perform bulk action");
+      showWarning("Please select products to update");
       return;
     }
 
     try {
-      setActionLoading((prev) => ({ ...prev, bulk: action }));
-
-      const response = await productService.bulkUpdateProductStatus(
-        selectedProducts,
-        action
-      );
-
+      const response = await bulkUpdateStatus(selectedProducts, status);
       if (response.success) {
-        // Update local state
-        setProducts((prev) =>
-          prev.map((product) =>
-            selectedProducts.includes(product.id)
-              ? { ...product, status: action }
-              : product
-          )
-        );
-
-        const actionText =
-          action === "approved"
-            ? "approved"
-            : action === "rejected"
-            ? "rejected"
-            : "updated";
         showSuccess(
-          `${selectedProducts.length} product(s) ${actionText} successfully`
+          `${selectedProducts.length} products ${status} successfully`
         );
-        setSelectedProducts([]);
-      } else {
-        throw new Error(response.message || "Failed to perform bulk action");
       }
     } catch (error) {
-      console.error("Error performing bulk action:", error);
-      showError(
-        error.message || "Failed to perform bulk action. Please try again."
-      );
-    } finally {
-      setActionLoading((prev) => {
-        const updated = { ...prev };
-        delete updated.bulk;
-        return updated;
-      });
-    }
-  };
-
-  // Handle negotiation
-  const handleNegotiation = async (product) => {
-    try {
-      // Optionally fetch latest product details
-      const response = await productService.getProductDetails(product.id);
-      if (response.success && response.data) {
-        setSelectedProduct(response.data);
-        setNegotiationForm({
-          proposedPrice: response.data.price.toString(),
-          reason: "market_adjustment",
-          message: "",
-        });
-        setShowNegotiationModal(true);
-      } else {
-        throw new Error("Failed to load product details");
-      }
-    } catch (error) {
-      console.error("Error loading product for negotiation:", error);
-      showError("Failed to load product details. Please try again.");
-    }
-  };
-
-  // Handle negotiation submission
-  const handleNegotiationSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!negotiationForm.proposedPrice || !negotiationForm.message) {
-      showError("Please fill in all required fields");
-      return;
-    }
-
-    const proposedPrice = parseFloat(negotiationForm.proposedPrice);
-    if (isNaN(proposedPrice) || proposedPrice <= 0) {
-      showError("Please enter a valid price");
-      return;
-    }
-
-    try {
-      setActionLoading((prev) => ({ ...prev, negotiation: true }));
-
-      const negotiationData = {
-        proposedPrice,
-        reason: negotiationForm.reason,
-        message: negotiationForm.message,
-        adminName: "Current Admin", // This should come from auth context
-      };
-
-      const response = await productService.submitNegotiation(
-        selectedProduct.id,
-        negotiationData
-      );
-
-      if (response.success) {
-        // Update local state
-        setProducts((prev) =>
-          prev.map((product) =>
-            product.id === selectedProduct.id
-              ? {
-                  ...product,
-                  negotiations: [...product.negotiations, response.data],
-                  price: proposedPrice,
-                }
-              : product
-          )
-        );
-
-        const priceDifference = proposedPrice - selectedProduct.price;
-        const changeType = priceDifference > 0 ? "increase" : "decrease";
-        const changeAmount = Math.abs(priceDifference);
-
-        showSuccess(
-          `Price negotiation sent to ${
-            selectedProduct.seller
-          }. Proposed ${changeType} of ₹${changeAmount.toLocaleString()}`
-        );
-
-        setShowNegotiationModal(false);
-        setSelectedProduct(null);
-        setNegotiationForm({ proposedPrice: "", reason: "", message: "" });
-      } else {
-        throw new Error(response.message || "Failed to submit negotiation");
-      }
-    } catch (error) {
-      console.error("Error submitting negotiation:", error);
-      showError(
-        error.message || "Failed to submit negotiation. Please try again."
-      );
-    } finally {
-      setActionLoading((prev) => {
-        const updated = { ...prev };
-        delete updated.negotiation;
-        return updated;
-      });
+      showError(`Failed to update products: ${error.message}`);
     }
   };
 
   // Handle product deletion
-  const handleDeleteProduct = async (productId, productTitle) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to delete "${productTitle}"? This action cannot be undone.`
-      )
-    ) {
+  const handleDelete = async (productId) => {
+    if (!window.confirm("Are you sure you want to delete this product?")) {
       return;
     }
 
     try {
-      setActionLoading((prev) => ({ ...prev, [productId]: "delete" }));
-
-      const response = await productService.deleteProduct(productId);
-
+      const response = await deleteProduct(productId);
       if (response.success) {
-        // Remove from local state
-        setProducts((prev) =>
-          prev.filter((product) => product.id !== productId)
-        );
-        showSuccess(`Product "${productTitle}" has been deleted successfully`);
-      } else {
-        throw new Error(response.message || "Failed to delete product");
+        showSuccess("Product deleted successfully");
       }
     } catch (error) {
-      console.error("Error deleting product:", error);
-      showError(error.message || "Failed to delete product. Please try again.");
-    } finally {
-      setActionLoading((prev) => {
-        const updated = { ...prev };
-        delete updated[productId];
-        return updated;
-      });
+      showError(`Failed to delete product: ${error.message}`);
     }
   };
 
-  // Handle refresh
-  const handleRefresh = () => {
-    loadProducts(true);
+  // Handle negotiation modal
+  const handleNegotiation = (product) => {
+    setSelectedProduct(product);
+    setNegotiationForm({
+      proposedPrice: product.price.toString(),
+      reason: "",
+      message: "",
+    });
+    setShowNegotiationModal(true);
   };
 
-  // Initial load
-  useEffect(() => {
-    loadProducts();
-  }, []);
+  // Submit negotiation
+  const handleNegotiationSubmit = async () => {
+    if (!selectedProduct) return;
 
-  // Filter products locally (can be moved to API for better performance)
-  useEffect(() => {
-    let filtered = products;
+    const negotiationData = {
+      ...negotiationForm,
+      proposedPrice: parseFloat(negotiationForm.proposedPrice),
+      adminName: user?.name || "Admin User",
+    };
 
-    // Filter by search term
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (product) =>
-          product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          product.seller.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          product.category.toLowerCase().includes(searchTerm.toLowerCase())
+    try {
+      const response = await submitNegotiation(
+        selectedProduct.id,
+        negotiationData
       );
-    }
-
-    // Filter by status
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((product) => product.status === statusFilter);
-    }
-
-    setFilteredProducts(filtered);
-  }, [searchTerm, statusFilter, products]);
-
-  // Reload data when filters change (debounced)
-  useEffect(() => {
-    const debounceTimer = setTimeout(() => {
-      if (!isLoading) {
-        loadProducts();
+      if (response.success) {
+        showSuccess("Price negotiation sent successfully");
+        setShowNegotiationModal(false);
+        setNegotiationForm({ proposedPrice: "", reason: "", message: "" });
       }
-    }, 500);
+    } catch (error) {
+      showError(`Failed to submit negotiation: ${error.message}`);
+    }
+  };
 
-    return () => clearTimeout(debounceTimer);
-  }, [searchTerm, statusFilter]);
+  // Handle pagination
+  const handlePageChange = (page) => {
+    setPagination({ page });
+  };
 
-  // Remove mock data once everything is working
-  const mockProducts = [
-    // ... mock data will be removed when API is ready
-  ];
+  // Selection handlers
+  const handleSelectAll = () => {
+    if (selectedProducts.length === products.length) {
+      clearSelection();
+    } else {
+      selectAllProducts();
+    }
+  };
 
-  const formatPrice = (price) => {
+  const handleProductSelect = (productId) => {
+    toggleProductSelection(productId);
+  };
+
+  // Status badge component
+  const StatusBadge = ({ status }) => {
+    const statusConfig = {
+      pending: { color: "bg-yellow-100 text-yellow-800", icon: Clock },
+      approved: { color: "bg-green-100 text-green-800", icon: CheckCircle },
+      rejected: { color: "bg-red-100 text-red-800", icon: XCircle },
+    };
+
+    const config = statusConfig[status] || statusConfig.pending;
+    const Icon = config.icon;
+
+    return (
+      <span
+        className={`px-2 py-1 rounded-full text-xs font-medium ${config.color} flex items-center gap-1`}
+      >
+        <Icon className="w-3 h-3" />
+        {status}
+      </span>
+    );
+  };
+
+  // Format currency
+  const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency: "INR",
-      minimumFractionDigits: 0,
-    }).format(price);
+      maximumFractionDigits: 0,
+    }).format(amount);
   };
 
+  // Format date
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString("en-IN", {
       year: "numeric",
@@ -479,493 +234,474 @@ const ProductManagement = () => {
     });
   };
 
-  const getStatusBadge = (status) => {
-    const statusConfig = {
-      pending: { bg: "bg-yellow-100", text: "text-yellow-800", icon: Clock },
-      approved: {
-        bg: "bg-green-100",
-        text: "text-green-800",
-        icon: CheckCircle,
-      },
-      rejected: { bg: "bg-red-100", text: "text-red-800", icon: XCircle },
-    };
-
-    const config = statusConfig[status];
-    const Icon = config.icon;
-
-    return (
-      <span
-        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.text}`}
-      >
-        <Icon className="w-3 h-3 mr-1" />
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </span>
-    );
-  };
-
-  const ProductRow = ({ product }) => {
-    const [showActions, setShowActions] = useState(false);
-    const isProductLoading = actionLoading[product.id];
-
-    return (
-      <tr className="hover:bg-gray-50 transition-colors">
-        <td className="px-6 py-4 whitespace-nowrap">
-          <input
-            type="checkbox"
-            checked={selectedProducts.includes(product.id)}
-            onChange={(e) => {
-              if (e.target.checked) {
-                setSelectedProducts((prev) => [...prev, product.id]);
-              } else {
-                setSelectedProducts((prev) =>
-                  prev.filter((id) => id !== product.id)
-                );
-              }
-            }}
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            disabled={isProductLoading}
-          />
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <div className="flex items-center">
-            <img
-              src={product.images[0]}
-              alt={product.title}
-              className="h-12 w-12 rounded-lg object-cover"
-              onError={(e) => {
-                e.target.src =
-                  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yNCAzNkMzMC42Mjc0IDM2IDM2IDMwLjYyNzQgMzYgMjRDMzYgMTcuMzcyNiAzMC42Mjc0IDEyIDI0IDEyQzE3LjM3MjYgMTIgMTIgMTcuMzcyNiAxMiAyNEMxMiAzMC42Mjc0IDE3LjM3MjYgMzYgMjQgMzZaIiBzdHJva2U9IiM5Q0EzQUYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPgo=";
-              }}
-            />
-            <div className="ml-4">
-              <div className="text-sm font-medium text-gray-900 max-w-xs truncate">
-                {product.title}
-              </div>
-              <div className="text-sm text-gray-500">
-                {product.category} • {product.condition}
-              </div>
-            </div>
-          </div>
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <div className="text-sm text-gray-900">{product.seller}</div>
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <div className="text-sm font-medium text-gray-900">
-            {formatPrice(product.price)}
-          </div>
-          {product.price !== product.originalPrice && (
-            <div className="flex items-center text-xs text-gray-500">
-              <span className="line-through mr-1">
-                {formatPrice(product.originalPrice)}
-              </span>
-              {product.price < product.originalPrice ? (
-                <TrendingDown className="h-3 w-3 text-red-500 ml-1" />
-              ) : (
-                <TrendingUp className="h-3 w-3 text-green-500 ml-1" />
-              )}
-            </div>
-          )}
-          {product.negotiations.length > 0 && (
-            <div className="text-xs text-blue-600 flex items-center mt-1">
-              <MessageCircle className="h-3 w-3 mr-1" />
-              {product.negotiations.length} negotiation(s)
-            </div>
-          )}
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          {getStatusBadge(product.status)}
-          {isProductLoading === "status" && (
-            <div className="text-xs text-blue-600 mt-1">Updating...</div>
-          )}
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-          {formatDate(product.submittedAt)}
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-          <div className="relative">
-            <button
-              onClick={() => setShowActions(!showActions)}
-              className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
-              disabled={isProductLoading}
-            >
-              <MoreHorizontal className="h-5 w-5" />
-            </button>
-
-            {showActions && !isProductLoading && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
-                <div className="py-1">
-                  <button
-                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full"
-                    onClick={() => {
-                      setShowActions(false);
-                      // Add view details functionality
-                      showInfo(`Viewing details for ${product.title}`);
-                    }}
-                  >
-                    <Eye className="h-4 w-4 mr-2" />
-                    View Details
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleNegotiation(product);
-                      setShowActions(false);
-                    }}
-                    className="flex items-center px-4 py-2 text-sm text-blue-700 hover:bg-gray-100 w-full"
-                  >
-                    <DollarSign className="h-4 w-4 mr-2" />
-                    Negotiate Price
-                  </button>
-                  {product.status === "pending" && (
-                    <>
-                      <button
-                        onClick={() => {
-                          handleStatusChange(product.id, "approved");
-                          setShowActions(false);
-                        }}
-                        className="flex items-center px-4 py-2 text-sm text-green-700 hover:bg-gray-100 w-full"
-                      >
-                        <Check className="h-4 w-4 mr-2" />
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => {
-                          handleStatusChange(product.id, "rejected");
-                          setShowActions(false);
-                        }}
-                        className="flex items-center px-4 py-2 text-sm text-red-700 hover:bg-gray-100 w-full"
-                      >
-                        <X className="h-4 w-4 mr-2" />
-                        Reject
-                      </button>
-                    </>
-                  )}
-                  <button
-                    className="flex items-center px-4 py-2 text-sm text-red-700 hover:bg-gray-100 w-full"
-                    onClick={() => {
-                      handleDeleteProduct(product.id, product.title);
-                      setShowActions(false);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {isProductLoading && (
-              <div className="absolute right-0 mt-2 text-xs text-blue-600">
-                {isProductLoading === "status" && "Updating status..."}
-                {isProductLoading === "delete" && "Deleting..."}
-              </div>
-            )}
-          </div>
-        </td>
-      </tr>
-    );
-  };
-
-  if (isLoading) {
-    return (
-      <div className="px-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-8"></div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="h-4 bg-gray-200 rounded w-full mb-4"></div>
-            <div className="space-y-3">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-16 bg-gray-200 rounded"></div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
   return (
-    <div className="px-6">
-      <div className="mb-8 flex justify-between items-center">
+    <div className="p-6 space-y-6 bg-white">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
             Product Management
           </h1>
-          <p className="text-gray-600 mt-2">
-            Manage and review all products on the platform
-          </p>
+          <p className="text-gray-600">Manage and approve product listings</p>
         </div>
-        <button
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <RefreshCw
-            className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`}
-          />
-          {isRefreshing ? "Refreshing..." : "Refresh"}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={refreshProducts}
+            disabled={isRefreshing}
+            className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+          >
+            <RefreshCw
+              className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
+            />
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white p-6 rounded-lg border">
+          <div className="flex items-center">
+            <div className="p-3 rounded-full bg-blue-100">
+              <Package className="w-6 h-6 text-blue-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">
+                Total Products
+              </p>
+              <p className="text-2xl font-bold text-gray-900">
+                {pagination.total}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg border">
+          <div className="flex items-center">
+            <div className="p-3 rounded-full bg-yellow-100">
+              <Clock className="w-6 h-6 text-yellow-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Pending</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {products.filter((p) => p.status === "pending").length}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg border">
+          <div className="flex items-center">
+            <div className="p-3 rounded-full bg-green-100">
+              <CheckCircle className="w-6 h-6 text-green-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Approved</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {products.filter((p) => p.status === "approved").length}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg border">
+          <div className="flex items-center">
+            <div className="p-3 rounded-full bg-red-100">
+              <XCircle className="w-6 h-6 text-red-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Rejected</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {products.filter((p) => p.status === "rejected").length}
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Filters and Search */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-          <div className="flex flex-col sm:flex-row gap-4 items-center flex-1">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <input
-                type="text"
-                placeholder="Search products, sellers..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full"
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-gray-400" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                disabled={isLoading}
-              >
-                <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-              </select>
-            </div>
-          </div>
-
-          {selectedProducts.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">
-                {selectedProducts.length} selected
-              </span>
-              <button
-                onClick={() => handleBulkAction("approved")}
-                disabled={actionLoading.bulk === "approved"}
-                className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {actionLoading.bulk === "approved" ? "Approving..." : "Approve"}
-              </button>
-              <button
-                onClick={() => handleBulkAction("rejected")}
-                disabled={actionLoading.bulk === "rejected"}
-                className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {actionLoading.bulk === "rejected" ? "Rejecting..." : "Reject"}
-              </button>
-            </div>
-          )}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <input
+            type="text"
+            placeholder="Search products..."
+            value={filters.search}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
         </div>
+
+        <select
+          value={filters.status}
+          onChange={(e) => handleStatusFilter(e.target.value)}
+          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        >
+          <option value="all">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+        </select>
       </div>
 
-      {/* Products Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <input
-                    type="checkbox"
-                    checked={
-                      selectedProducts.length === filteredProducts.length &&
-                      filteredProducts.length > 0
-                    }
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedProducts(filteredProducts.map((p) => p.id));
-                      } else {
-                        setSelectedProducts([]);
-                      }
-                    }}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Product
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Seller
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Price
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Submitted
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredProducts.map((product) => (
-                <ProductRow key={product.id} product={product} />
-              ))}
-            </tbody>
-          </table>
+      {/* Bulk Actions */}
+      {selectedProducts.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-blue-700">
+              {selectedProducts.length} product(s) selected
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleBulkStatusUpdate("approved")}
+                className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+              >
+                Approve All
+              </button>
+              <button
+                onClick={() => handleBulkStatusUpdate("rejected")}
+                className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+              >
+                Reject All
+              </button>
+              <button
+                onClick={clearSelection}
+                className="px-3 py-1 bg-gray-600 text-white text-sm rounded hover:bg-gray-700"
+              >
+                Clear Selection
+              </button>
+            </div>
+          </div>
         </div>
+      )}
 
-        {filteredProducts.length === 0 && (
+      {/* Products Table */}
+      <div className="bg-white rounded-lg border overflow-hidden">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+            <span className="ml-2 text-gray-600">Loading products...</span>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left">
+                    <input
+                      type="checkbox"
+                      checked={
+                        selectedProducts.length === products.length &&
+                        products.length > 0
+                      }
+                      onChange={handleSelectAll}
+                      className="rounded border-gray-300 focus:ring-blue-500"
+                    />
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Product
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Seller
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Price
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Submitted
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {products.map((product) => (
+                  <tr key={product.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedProducts.includes(product.id)}
+                        onChange={() => handleProductSelect(product.id)}
+                        className="rounded border-gray-300 focus:ring-blue-500"
+                      />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center">
+                        <img
+                          className="h-12 w-12 rounded-lg object-cover"
+                          src={product.images?.[0] || "/placeholder-image.jpg"}
+                          alt={product.title}
+                        />
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900 line-clamp-2">
+                            {product.title}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {product.category} • {product.condition}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-900">
+                        {product.seller}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {product.sellerEmail}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-gray-900">
+                        {formatCurrency(product.price)}
+                      </div>
+                      {product.originalPrice !== product.price && (
+                        <div className="text-sm text-gray-500 line-through">
+                          {formatCurrency(product.originalPrice)}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <StatusBadge status={product.status} />
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {formatDate(product.submittedAt)}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        {product.status === "pending" && (
+                          <>
+                            <button
+                              onClick={() =>
+                                handleStatusUpdate(product.id, "approved")
+                              }
+                              disabled={actionLoading[product.id]}
+                              className="p-2 text-green-600 hover:bg-green-100 rounded-lg disabled:opacity-50"
+                              title="Approve"
+                            >
+                              {actionLoading[product.id] ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <CheckCircle className="w-4 h-4" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleStatusUpdate(product.id, "rejected")
+                              }
+                              disabled={actionLoading[product.id]}
+                              className="p-2 text-red-600 hover:bg-red-100 rounded-lg disabled:opacity-50"
+                              title="Reject"
+                            >
+                              {actionLoading[product.id] ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <XCircle className="w-4 h-4" />
+                              )}
+                            </button>
+                          </>
+                        )}
+                        <button
+                          onClick={() => handleNegotiation(product)}
+                          disabled={actionLoading[`negotiate_${product.id}`]}
+                          className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg disabled:opacity-50"
+                          title="Negotiate Price"
+                        >
+                          {actionLoading[`negotiate_${product.id}`] ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <DollarSign className="w-4 h-4" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleDelete(product.id)}
+                          disabled={actionLoading[product.id]}
+                          className="p-2 text-red-600 hover:bg-red-100 rounded-lg disabled:opacity-50"
+                          title="Delete"
+                        >
+                          {actionLoading[product.id] ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {!isLoading && products.length === 0 && (
           <div className="text-center py-12">
             <Package className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">
               No products found
             </h3>
             <p className="mt-1 text-sm text-gray-500">
-              {searchTerm || statusFilter !== "all"
-                ? "Try adjusting your search or filter criteria."
-                : "No products have been submitted yet."}
+              {filters.search || filters.status !== "all"
+                ? "Try adjusting your search or filters"
+                : "No products have been submitted yet"}
             </p>
           </div>
         )}
       </div>
 
-      {/* Price Negotiation Modal */}
+      {/* Pagination */}
+      {pagination.totalPages > 1 && (
+        <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+          <div className="flex flex-1 justify-between sm:hidden">
+            <button
+              onClick={() => handlePageChange(pagination.page - 1)}
+              disabled={pagination.page === 1}
+              className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => handlePageChange(pagination.page + 1)}
+              disabled={pagination.page === pagination.totalPages}
+              className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+          <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-gray-700">
+                Showing{" "}
+                <span className="font-medium">
+                  {(pagination.page - 1) * pagination.limit + 1}
+                </span>{" "}
+                to{" "}
+                <span className="font-medium">
+                  {Math.min(
+                    pagination.page * pagination.limit,
+                    pagination.total
+                  )}
+                </span>{" "}
+                of <span className="font-medium">{pagination.total}</span>{" "}
+                results
+              </p>
+            </div>
+            <div>
+              <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm">
+                <button
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={pagination.page === 1}
+                  className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                {Array.from(
+                  { length: pagination.totalPages },
+                  (_, i) => i + 1
+                ).map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => handlePageChange(page)}
+                    className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                      page === pagination.page
+                        ? "z-10 bg-blue-600 text-white focus:z-20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                        : "text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={pagination.page === pagination.totalPages}
+                  className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </nav>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Negotiation Modal */}
       {showNegotiationModal && selectedProduct && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-medium text-gray-900">
-                Price Negotiation
-              </h3>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Price Negotiation</h3>
               <button
                 onClick={() => setShowNegotiationModal(false)}
                 className="text-gray-400 hover:text-gray-600"
               >
-                <X className="h-6 w-6" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Product Summary */}
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center space-x-4">
-                <img
-                  src={selectedProduct.images[0]}
-                  alt={selectedProduct.title}
-                  className="h-16 w-16 rounded-lg object-cover"
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Product
+                </label>
+                <p className="text-sm text-gray-900">{selectedProduct.title}</p>
+                <p className="text-sm text-gray-500">
+                  Current Price: {formatCurrency(selectedProduct.price)}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Proposed Price
+                </label>
+                <input
+                  type="number"
+                  value={negotiationForm.proposedPrice}
+                  onChange={(e) =>
+                    setNegotiationForm({
+                      ...negotiationForm,
+                      proposedPrice: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter proposed price"
                 />
-                <div className="flex-1">
-                  <h4 className="text-lg font-medium text-gray-900">
-                    {selectedProduct.title}
-                  </h4>
-                  <p className="text-sm text-gray-500">
-                    Seller: {selectedProduct.seller}
-                  </p>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <span className="text-sm font-medium text-gray-900">
-                      Current Price: {formatPrice(selectedProduct.price)}
-                    </span>
-                    {selectedProduct.price !==
-                      selectedProduct.originalPrice && (
-                      <span className="text-xs text-gray-500 line-through">
-                        Original: {formatPrice(selectedProduct.originalPrice)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Negotiation History */}
-            {selectedProduct.negotiations.length > 0 && (
-              <div className="mb-6">
-                <h4 className="text-lg font-medium text-gray-900 mb-3">
-                  Negotiation History
-                </h4>
-                <div className="space-y-3 max-h-32 overflow-y-auto">
-                  {selectedProduct.negotiations.map((negotiation) => (
-                    <div
-                      key={negotiation.id}
-                      className="p-3 border border-gray-200 rounded-lg"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {negotiation.adminName} proposed{" "}
-                            {formatPrice(negotiation.proposedPrice)}
-                          </div>
-                          <div className="text-xs text-gray-500 capitalize">
-                            Reason: {negotiation.reason.replace("_", " ")}
-                          </div>
-                          <p className="text-sm text-gray-700 mt-1">
-                            {negotiation.message}
-                          </p>
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {formatDate(negotiation.createdAt)}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Negotiation Form */}
-            <form onSubmit={handleNegotiationSubmit}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Proposed Price *
-                  </label>
-                  <input
-                    type="number"
-                    value={negotiationForm.proposedPrice}
-                    onChange={(e) =>
-                      setNegotiationForm({
-                        ...negotiationForm,
-                        proposedPrice: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter proposed price"
-                    required
-                    min="0"
-                    step="100"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Reason for Adjustment
-                  </label>
-                  <select
-                    value={negotiationForm.reason}
-                    onChange={(e) =>
-                      setNegotiationForm({
-                        ...negotiationForm,
-                        reason: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="market_adjustment">Market Adjustment</option>
-                    <option value="condition_adjustment">
-                      Condition Assessment
-                    </option>
-                    <option value="competitive_pricing">
-                      Competitive Pricing
-                    </option>
-                    <option value="demand_based">Demand Based</option>
-                    <option value="seasonal_adjustment">
-                      Seasonal Adjustment
-                    </option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
               </div>
 
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Message to Seller *
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Reason
+                </label>
+                <select
+                  value={negotiationForm.reason}
+                  onChange={(e) =>
+                    setNegotiationForm({
+                      ...negotiationForm,
+                      reason: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Select reason</option>
+                  <option value="market_adjustment">
+                    Market Price Adjustment
+                  </option>
+                  <option value="condition_based">
+                    Condition Based Pricing
+                  </option>
+                  <option value="competitive_pricing">
+                    Competitive Pricing
+                  </option>
+                  <option value="bulk_discount">Bulk Discount</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Message
                 </label>
                 <textarea
                   value={negotiationForm.message}
@@ -975,30 +711,35 @@ const ProductManagement = () => {
                       message: e.target.value,
                     })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows="4"
-                  placeholder="Explain the reason for price adjustment to the seller..."
-                  required
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Add a message to the seller..."
                 />
               </div>
+            </div>
 
-              <div className="flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setShowNegotiationModal(false)}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  <Send className="h-4 w-4 mr-2" />
-                  Send Negotiation
-                </button>
-              </div>
-            </form>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowNegotiationModal(false)}
+                className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleNegotiationSubmit}
+                disabled={
+                  !negotiationForm.proposedPrice || !negotiationForm.reason
+                }
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {actionLoading[`negotiate_${selectedProduct.id}`] ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+                Send Negotiation
+              </button>
+            </div>
           </div>
         </div>
       )}

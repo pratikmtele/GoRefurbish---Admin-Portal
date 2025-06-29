@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
   Filter,
@@ -22,10 +22,11 @@ import {
   User,
   Home,
 } from "lucide-react";
-import { useApp } from "../context";
+import { useNotificationStore } from "../stores";
 
 const UserManagement = () => {
-  const { showSuccess, showError, showWarning, showInfo } = useApp();
+  const { showSuccess, showError, showWarning, showInfo } =
+    useNotificationStore();
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);

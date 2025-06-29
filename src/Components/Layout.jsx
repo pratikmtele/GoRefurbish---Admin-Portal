@@ -1,4 +1,3 @@
-import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -13,14 +12,14 @@ import {
   Shield,
   CreditCard,
 } from "lucide-react";
-import { useAuth, useTheme, useApp } from "../context";
+import { useAuthStore, useAppStore, useNotificationStore } from "../stores";
 import NotificationSystem from "./NotificationSystem";
 
 const Layout = ({ children }) => {
-  const { sidebarCollapsed, toggleSidebar } = useTheme();
+  const { sidebarCollapsed, toggleSidebar } = useAppStore();
   const location = useLocation();
-  const { user, logout } = useAuth();
-  const { showSuccess } = useApp();
+  const { user, logout } = useAuthStore();
+  const { showSuccess } = useNotificationStore();
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },

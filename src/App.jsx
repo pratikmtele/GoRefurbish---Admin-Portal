@@ -1,7 +1,8 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import { useEffect } from "react";
 
-// Import context providers
-import { CombinedProvider, useAuth } from "./context";
+// Import Zustand stores
+import { useAuthStore } from "./stores";
 
 // Import components
 import Login from "./Pages/Login";
@@ -12,15 +13,23 @@ import StaffManagement from "./Pages/StaffManagement";
 import PaymentManagement from "./Pages/PaymentManagement";
 import Settings from "./Pages/Settings";
 import Layout from "./Components/Layout";
+import NotificationSystem from "./Components/NotificationSystem";
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuthStore();
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
 // Main App Component
-const AppContent = () => {
+const App = () => {
+  const { initialize } = useAuthStore();
+
+  // Initialize auth state on app load
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Routes>
@@ -47,15 +56,8 @@ const AppContent = () => {
           }
         />
       </Routes>
+      <NotificationSystem />
     </div>
-  );
-};
-
-const App = () => {
-  return (
-    <CombinedProvider>
-      <AppContent />
-    </CombinedProvider>
   );
 };
 
